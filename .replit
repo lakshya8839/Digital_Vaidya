@@ -1,0 +1,81 @@
+modules = ["nodejs-20", "web", "python-3.11"]
+[agent]
+expertMode = true
+integrations = ["python_database:1.0.0", "python_openai:1.0.0", "python_gemini:1.0.0"]
+
+[nix]
+channel = "stable-25_05"
+packages = ["cmake", "freetype", "glibcLocales", "lcms2", "libGL", "libGLU", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "frontend"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "backend"
+
+[[workflows.workflow]]
+name = "frontend"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "backend"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && python -m gunicorn --bind 0.0.0.0:8000 --workers 2 --timeout 120 wsgi:app"
+waitForPort = 8000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
+
+[[ports]]
+localPort = 36851
+externalPort = 3001
+
+[[ports]]
+localPort = 39469
+externalPort = 3003
+
+[[ports]]
+localPort = 40805
+externalPort = 4200
+
+[[ports]]
+localPort = 44997
+externalPort = 3002
+
+[[ports]]
+localPort = 45457
+externalPort = 3000
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "5000"]
+build = ["npm", "install", "&&", "npm", "run", "build"]
