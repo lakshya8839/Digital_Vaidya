@@ -92,6 +92,11 @@ export default function FaceCapture({ onBack, onCapture, mode = 'register', user
       
       if (data.success) {
         stopCamera();
+        // Store face registration status in localStorage
+        if (mode === 'register') {
+          localStorage.setItem('faceRegistered', 'true');
+          localStorage.setItem('faceRegisteredEmail', mobile || '');
+        }
         onCapture && onCapture(data);
       } else {
         setError(data.message || 'Face processing failed');

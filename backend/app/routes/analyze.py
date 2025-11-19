@@ -103,45 +103,59 @@ def generate_summary():
     """
     Generate a comprehensive health summary report in PDF format based on symptoms and affected regions.
     """
-    data = request.get_json(silent=True) or {}
-    description = data.get("description", "")
-    affected_regions = data.get("affectedRegions", [])
-    health_params = data.get("healthParams", {})
-    
-    if not description and not affected_regions:
-        return {"ok": False, "error": "Please provide symptom description or mark affected areas"}, 400
-    
     try:
-        analysis = analyze_symptoms_with_ai(description, health_params, affected_regions)
-    except Exception as e:
-        print(f"AI analysis failed for PDF generation, falling back to simple analysis: {str(e)}")
-        analysis = simple_analyze(description, health_params, affected_regions)
-    
-    user_info = None
-    if hasattr(request, 'user') and request.user:
-        user_info = {
-            "uid": request.user.get("uid"),
-            "email": request.user.get("email")
+        data = request.get_json(silent=True) or {}
+        description = data.get("description", "")
+        affected_regions = data.get("affectedRegions", [])
+        health_params = data.get("healthParams", {})
+        
+        if not description and not affected_regions:
+            return {"ok": False, "error": "Please provide symptom description or mark affected areas"}, 400
+        
+        try:
+            analysis = analyze_symptoms_with_ai(description, health_params, affected_regions)
+        except Exception as e:
+            print(f"AI analysis failed for PDF generation, falling back to simple analysis: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            analysis = simple_analyze(description, health_params, affected_regions)
+        
+        user_info = None
+        if hasattr(request, 'user') and request.user:
+            user_info = {
+                "uid": request.user.get("uid"),
+                "email": request.user.get("email")
+            }
+        
+        report_data = {
+            "timestamp": datetime.utcnow().isoformat() + 'Z',
+            "user": user_info,
+            "affectedRegions": affected_regions,
+            "symptoms": description,
+            "healthParameters": health_params,
+            "analysis": analysis
         }
-    
-    report_data = {
-        "timestamp": datetime.utcnow().isoformat() + 'Z',
-        "user": user_info,
-        "affectedRegions": affected_regions,
-        "symptoms": description,
-        "healthParameters": health_params,
-        "analysis": analysis
-    }
-    
-    pdf_buffer = generate_health_summary_pdf(report_data)
-    
-    filename = f"DigitalVaidya-Health-Report-{datetime.utcnow().strftime('%Y-%m-%d')}.pdf"
-    
-    return send_file(
-        pdf_buffer,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=filename
-    )
+        
+        try:
+            pdf_buffer = generate_health_summary_pdf(report_data)
+            filename = f"DigitalVaidya-Health-Report-{datetime.utcnow().strftime('%Y-%m-%d')}.pdf"
+            
+            return send_file(
+                pdf_buffer,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=filename
+            )
+        except Exception as e:
+            print(f"PDF generation error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {"ok": False, "error": f"Failed to generate PDF: {str(e)}"}, 500
+            
+    except Exception as e:
+        print(f"Generate summary route error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"ok": False, "error": f"Server error: {str(e)}"}, 500
 
 

@@ -13,10 +13,22 @@ FACE_DATA_DIR = 'backend/face_data'
 os.makedirs(FACE_DATA_DIR, exist_ok=True)
 
 CASCADE_PATH = str(Path(__file__).resolve().parent.parent / 'cascade_data' / 'haarcascade_frontalface_default.xml')
+
+# Initialize face recognition model on module load
+print("\n" + "="*50)
+print("🔍 Initializing Face Recognition Model...")
+print("="*50)
 face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
 
 if face_cascade.empty():
     raise RuntimeError(f"Failed to load Haar cascade from {CASCADE_PATH}. File may be missing or corrupted.")
+
+print(f"✓ Face recognition model loaded successfully")
+print(f"✓ Cascade file: {CASCADE_PATH}")
+print(f"✓ Face data directory: {FACE_DATA_DIR}")
+registered_faces = len([f for f in os.listdir(FACE_DATA_DIR) if f.endswith('.json')])
+print(f"✓ Registered faces: {registered_faces}")
+print("="*50 + "\n")
 
 def decode_base64_image(base64_string):
     if ',' in base64_string:
@@ -157,4 +169,25 @@ def login_face():
 
 @bp.route('/face/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'ok', 'message': 'Face recognition API is running'})
+    registered_count = len([f for f in os.listdir(FACE_DATA_DIR) if f.endswith('.json')])
+    return jsonify({
+        'status': 'ok', 
+        'message': 'Face recognition API is running',
+        'modelLoaded': not face_cascade.empty(),
+        'registeredFaces': registered_count
+    })
+
+@bp.route('/face/check-registered', methods=['GET'])
+def check_registered():
+    """Check if any faces are registered"""
+    try:
+        registered_count = len([f for f in os.listdir(FACE_DATA_DIR) if f.endswith('.json')])
+        return jsonify({
+            'hasRegisteredFaces': registered_count > 0,
+            'count': registered_count
+        })
+    except Exception as e:
+        return jsonify({
+            'hasRegisteredFaces': False,
+            'error': str(e)
+        }), 500

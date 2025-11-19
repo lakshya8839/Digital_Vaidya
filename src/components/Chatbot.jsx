@@ -87,21 +87,35 @@ export default function Chatbot({ affectedRegions = [] }) {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       
-      if (data.ok) {
+      if (data.ok && data.response) {
         setMessages([...newMessages, { role: 'assistant', content: data.response }]);
       } else {
+        const errorMsg = data.error || data.response || 'Unknown error occurred';
+        console.error('Chatbot API error:', errorMsg);
         setMessages([...newMessages, { 
           role: 'assistant', 
-          content: 'I apologize, but I encountered an error. Please try again or consult with a healthcare professional.' 
+          content: `I apologize, but I encountered an error: ${errorMsg}. Please ensure the backend server is running and try again.` 
         }]);
       }
     } catch (error) {
       console.error('Chatbot error:', error);
+      let errorMessage = 'I apologize, but I\'m having trouble connecting right now. ';
+      
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        errorMessage += 'The backend server may not be running. Please check that the backend is started on http://localhost:8000';
+      } else {
+        errorMessage += `Error: ${error.message}. Please try again later.`;
+      }
+      
       setMessages([...newMessages, { 
         role: 'assistant', 
-        content: 'I apologize, but I\'m having trouble connecting right now. Please try again later.' 
+        content: errorMessage
       }]);
     } finally {
       setIsLoading(false);
@@ -113,7 +127,7 @@ export default function Chatbot({ affectedRegions = [] }) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Open chatbot"
-        className="fixed bottom-5 right-5 z-40 h-14 w-14 rounded-full bg-gradient-to-br from-brand-500 to-sky-600 text-white shadow-xl hover:scale-105 active:scale-95 transition grid place-items-center"
+        className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-40 h-12 w-12 sm:h-14 sm:w-14 rounded-full bg-gradient-to-br from-brand-500 to-sky-600 text-white shadow-xl hover:scale-105 active:scale-95 transition grid place-items-center"
       >
         <AnimatePresence mode="wait">
           {isOpen ? (
@@ -154,7 +168,7 @@ export default function Chatbot({ affectedRegions = [] }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-24 right-5 z-40 w-96 max-w-[calc(100vw-2.5rem)] h-[600px] max-h-[calc(100vh-8rem)] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden"
+            className="fixed bottom-20 right-2 sm:bottom-24 sm:right-5 z-40 w-[calc(100vw-1rem)] sm:w-96 max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2.5rem)] h-[calc(100vh-6rem)] sm:h-[600px] max-h-[calc(100vh-6rem)] sm:max-h-[calc(100vh-8rem)] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden"
           >
             <div className="bg-gradient-to-br from-brand-500 to-sky-600 text-white p-4 flex items-center justify-between">
               <div>

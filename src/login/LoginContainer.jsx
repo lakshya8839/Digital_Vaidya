@@ -28,6 +28,41 @@ export default function LoginContainer({ onComplete }) {
   const [userEmail, setUserEmail] = React.useState('');
   const [isNewAccount, setIsNewAccount] = React.useState(false);
   const [allowAutoComplete, setAllowAutoComplete] = React.useState(true);
+  const [hasFaceRegistered, setHasFaceRegistered] = React.useState(false);
+  const [checkingFace, setCheckingFace] = React.useState(true);
+
+  // Check if face is registered on component mount
+  React.useEffect(() => {
+    const checkFaceRegistration = async () => {
+      try {
+        // First check localStorage
+        const faceRegistered = localStorage.getItem('faceRegistered') === 'true';
+        
+        if (faceRegistered) {
+          // Also verify with backend
+          const response = await fetch('/api/face/check-registered');
+          const data = await response.json();
+          
+          if (data.hasRegisteredFaces) {
+            setHasFaceRegistered(true);
+            // Skip directly to face login
+            setMethod('face');
+            setStep(4); // Go to face login step
+          } else {
+            // Clear localStorage if backend says no faces registered
+            localStorage.removeItem('faceRegistered');
+            localStorage.removeItem('faceRegisteredEmail');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking face registration:', error);
+      } finally {
+        setCheckingFace(false);
+      }
+    };
+    
+    checkFaceRegistration();
+  }, []);
 
   React.useEffect(() => {
     if (isAuthenticated && user && onComplete && allowAutoComplete) {
@@ -64,6 +99,13 @@ export default function LoginContainer({ onComplete }) {
   const handleFaceRegisterDone = () => {
     // Re-enable auto-complete after face registration
     setAllowAutoComplete(true);
+    setHasFaceRegistered(true);
+    setStep(6);
+  };
+  
+  const handleFaceLoginDone = (name) => {
+    setUserName(name || 'Returning User');
+    setAllowAutoComplete(true);
     setStep(6);
   };
 
@@ -90,9 +132,20 @@ export default function LoginContainer({ onComplete }) {
         </div>
         <p className="opacity-80 text-sm mb-4">AI Symptom Sketcher — secure, quick sign-in.</p>
 
-        <Stepper />
+        {!checkingFace && <Stepper />}
+
+        {checkingFace && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mx-auto mb-2"></div>
+              <p className="text-sm opacity-70">Checking face registration...</p>
+            </div>
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
+          {!checkingFace && (
+            <>
           {step === 0 && (
             <motion.div key="language" variants={variants} initial="initial" animate="animate" exit="exit">
               <LanguageSelect value={language} onChange={setLanguage} onContinue={next} />
@@ -115,7 +168,10 @@ export default function LoginContainer({ onComplete }) {
           )}
           {step === 4 && method === 'face' && (
             <motion.div key="face" variants={variants} initial="initial" animate="animate" exit="exit">
-              <FaceLogin onBack={() => setStep(1)} onDone={(name) => { setUserName(name || 'Returning User'); setStep(6); }} />
+              <FaceLogin 
+                onBack={hasFaceRegistered ? () => { setStep(1); setMethod(null); } : () => setStep(1)} 
+                onDone={handleFaceLoginDone} 
+              />
             </motion.div>
           )}
           {step === 5 && isNewAccount && (
@@ -133,6 +189,8 @@ export default function LoginContainer({ onComplete }) {
             <motion.div key="welcome" variants={variants} initial="initial" animate="animate" exit="exit">
               <WelcomeScreen name={userName || 'User'} onContinue={onComplete} />
             </motion.div>
+          )}
+            </>
           )}
         </AnimatePresence>
       </div>

@@ -189,7 +189,14 @@ export default function Demo() {
         })
       });
       
-      if (response.ok) {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      // Check if response is actually a PDF
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/pdf')) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -202,11 +209,21 @@ export default function Demo() {
         
         alert('Health summary PDF report downloaded successfully!');
       } else {
-        alert('Failed to generate summary. Please try again.');
+        // Response might be JSON error
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Invalid response format');
       }
     } catch (error) {
       console.error('Summary generation error:', error);
-      alert('Error generating summary. Please try again.');
+      let errorMessage = 'Error generating summary. ';
+      
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        errorMessage += 'The backend server may not be running. Please check that the backend is started on http://localhost:8000';
+      } else {
+        errorMessage += error.message || 'Please try again.';
+      }
+      
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -322,28 +339,30 @@ export default function Demo() {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
-        <div className="mt-4 flex items-center gap-3 flex-wrap">
-          <button type="button" onClick={toggleListening} className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 ${listening ? 'bg-red-500 text-white' : 'bg-emerald-600 text-white'} shadow-lg hover:opacity-95 transition`}>
-            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+        <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
+          <button type="button" onClick={toggleListening} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base ${listening ? 'bg-red-500 text-white' : 'bg-emerald-600 text-white'} shadow-lg hover:opacity-95 transition`}>
+            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 sm:h-5 sm:w-5">
               <path d="M12 14a4 4 0 0 0 4-4V7a4 4 0 1 0-8 0v3a4 4 0 0 0 4 4Z" stroke="currentColor" strokeWidth="2"/>
               <path d="M19 11a7 7 0 0 1-14 0m7 7v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
-            {listening ? 'Listening… Click to stop' : 'Speak Symptoms'}
+            <span className="hidden sm:inline">{listening ? 'Listening… Click to stop' : 'Speak Symptoms'}</span>
+            <span className="sm:hidden">{listening ? 'Stop' : 'Speak'}</span>
           </button>
-          {!supported && <span className="text-sm opacity-70">Voice input not supported in this browser.</span>}
-          <button type="submit" className="btn-primary" disabled={loading}>
+          {!supported && <span className="text-xs sm:text-sm opacity-70 text-center sm:text-left">Voice input not supported in this browser.</span>}
+          <button type="submit" className="btn-primary flex-1 sm:flex-initial text-sm sm:text-base px-4 py-2 sm:py-3" disabled={loading}>
             {loading ? 'Analyzing...' : 'Analyze'}
           </button>
           <button 
             type="button" 
             onClick={generateAndDownloadSummary} 
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-3 bg-purple-600 text-white shadow-lg hover:opacity-95 transition"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base bg-purple-600 text-white shadow-lg hover:opacity-95 transition"
             disabled={loading}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            {loading ? 'Generating...' : 'Generate Summary Report'}
+            <span className="hidden sm:inline">{loading ? 'Generating...' : 'Generate Summary Report'}</span>
+            <span className="sm:hidden">{loading ? 'Generating...' : 'Generate Report'}</span>
           </button>
         </div>
       </motion.form>

@@ -1,23 +1,42 @@
 import React, { useState, useRef } from 'react';
 
+// Body regions ordered from most specific (smallest) to least specific (largest)
+// This ensures more specific body parts are matched before general areas
 const BODY_REGIONS = [
+  // Head and neck (most specific)
   { name: 'Head', area: { x: [35, 65], y: [5, 20] } },
   { name: 'Neck', area: { x: [42, 58], y: [20, 25] } },
-  { name: 'Chest', area: { x: [30, 70], y: [25, 45] } },
+  
+  // Shoulders (specific)
   { name: 'Left Shoulder', area: { x: [15, 30], y: [25, 35] } },
   { name: 'Right Shoulder', area: { x: [70, 85], y: [25, 35] } },
+  
+  // Arms (specific)
   { name: 'Left Arm', area: { x: [10, 25], y: [35, 55] } },
   { name: 'Right Arm', area: { x: [75, 90], y: [35, 55] } },
   { name: 'Left Forearm', area: { x: [8, 23], y: [55, 70] } },
   { name: 'Right Forearm', area: { x: [77, 92], y: [55, 70] } },
-  { name: 'Abdomen', area: { x: [32, 68], y: [45, 60] } },
-  { name: 'Pelvis', area: { x: [35, 65], y: [60, 68] } },
-  { name: 'Left Thigh', area: { x: [35, 48], y: [68, 85] } },
-  { name: 'Right Thigh', area: { x: [52, 65], y: [68, 85] } },
+  
+  // Knees (specific)
   { name: 'Left Knee', area: { x: [36, 47], y: [82, 88] } },
   { name: 'Right Knee', area: { x: [53, 64], y: [82, 88] } },
+  
+  // Pelvis (specific)
+  { name: 'Pelvis', area: { x: [35, 65], y: [60, 68] } },
+  
+  // Thighs (specific)
+  { name: 'Left Thigh', area: { x: [35, 48], y: [68, 85] } },
+  { name: 'Right Thigh', area: { x: [52, 65], y: [68, 85] } },
+  
+  // Lower legs (specific)
   { name: 'Left Lower Leg', area: { x: [37, 48], y: [88, 100] } },
-  { name: 'Right Lower Leg', area: { x: [52, 63], y: [88, 100] } }
+  { name: 'Right Lower Leg', area: { x: [52, 63], y: [88, 100] } },
+  
+  // Abdomen (more specific than chest)
+  { name: 'Abdomen', area: { x: [32, 68], y: [45, 60] } },
+  
+  // Chest (least specific - largest area, checked last)
+  { name: 'Chest', area: { x: [30, 70], y: [25, 45] } }
 ];
 
 export default function BodyMapper3D({ spots, onAddSpot }) {
@@ -32,15 +51,37 @@ export default function BodyMapper3D({ spots, onAddSpot }) {
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     
-    const region = BODY_REGIONS.find(r => 
-      x >= r.area.x[0] && x <= r.area.x[1] && 
-      y >= r.area.y[0] && y <= r.area.y[1]
-    );
+    // Find the most specific region (smallest area) that contains the click point
+    // This ensures we match specific body parts before general areas like "Chest"
+    let bestMatch = null;
+    let smallestArea = Infinity;
     
-    if (region) {
-      onAddSpot(region.name, x, y);
-      setSelectedRegion(region.name);
+    for (const region of BODY_REGIONS) {
+      const inRegion = 
+        x >= region.area.x[0] && x <= region.area.x[1] && 
+        y >= region.area.y[0] && y <= region.area.y[1];
+      
+      if (inRegion) {
+        // Calculate area size (width * height)
+        const areaSize = (region.area.x[1] - region.area.x[0]) * (region.area.y[1] - region.area.y[0]);
+        
+        // Prefer smaller, more specific regions
+        if (areaSize < smallestArea) {
+          smallestArea = areaSize;
+          bestMatch = region;
+        }
+      }
+    }
+    
+    // Only register if we found a valid match
+    if (bestMatch) {
+      onAddSpot(bestMatch.name, x, y);
+      setSelectedRegion(bestMatch.name);
       setTimeout(() => setSelectedRegion(null), 2000);
+    } else {
+      // Show feedback that click was outside body regions
+      setSelectedRegion('No body part detected');
+      setTimeout(() => setSelectedRegion(null), 1500);
     }
   };
 
@@ -56,30 +97,32 @@ export default function BodyMapper3D({ spots, onAddSpot }) {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      <div className="flex gap-2 mb-2">
+      <div className="flex flex-col sm:flex-row gap-2 mb-2">
         <button
           onClick={() => setMarkingMode(!markingMode)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+          className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition ${
             markingMode 
               ? 'bg-green-600 text-white shadow-lg' 
               : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
-          {markingMode ? '✓ Marking Mode Active' : 'Enable Marking Mode'}
+          <span className="hidden sm:inline">{markingMode ? '✓ Marking Mode Active' : 'Enable Marking Mode'}</span>
+          <span className="sm:hidden">{markingMode ? '✓ Marking' : 'Mark'}</span>
         </button>
         <button
           onClick={() => setMarkingMode(false)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+          className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition ${
             !markingMode 
               ? 'bg-purple-600 text-white shadow-lg' 
               : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
           }`}
         >
-          {!markingMode ? '✓ Interaction Mode' : 'Enable Zoom/Rotate'}
+          <span className="hidden sm:inline">{!markingMode ? '✓ Interaction Mode' : 'Enable Zoom/Rotate'}</span>
+          <span className="sm:hidden">{!markingMode ? '✓ Interact' : 'Zoom'}</span>
         </button>
       </div>
 
-      <div className="relative w-full bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg overflow-hidden" style={{ height: '500px' }}>
+      <div className="relative w-full bg-gradient-to-br from-slate-900 to-slate-800 rounded-lg overflow-hidden h-[300px] sm:h-[400px] md:h-[500px]">
         <div className="relative w-full h-full">
           <iframe 
             src="https://clara.io/embed/d49ee603-8e6c-4720-bd20-9e3d7b13978a?renderer=webgl" 
