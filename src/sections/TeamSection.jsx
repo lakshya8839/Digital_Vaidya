@@ -13,7 +13,7 @@ const team = [
     image: "/team/navita.jpg",
   },
   {
-    name: "Lakshaya",
+    name: "Lakshya",
     year: "3rd Year",
     image: "/team/lakshaya.jpg",
   },
